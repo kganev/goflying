@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"../../mpu9250"
+	"../../magnetometer"
 	"github.com/gorilla/websocket"
 )
 
@@ -52,8 +53,11 @@ func readData(mpu *mpu9250.MPU9250) (reqData chan chan map[string]interface{}){
 	var (
 		cur *mpu9250.MPUData
 		logMap = make(map[string]interface{})
+		m = new(magkal.MagKalMeasurement)
 	)
 	reqData = make(chan chan map[string]interface{}, 100)
+
+	s := magkal.NewMagKal()
 
 	go func() {
 		t0 := time.Now()
@@ -65,8 +69,13 @@ func readData(mpu *mpu9250.MPU9250) (reqData chan chan map[string]interface{}){
 			log.Printf("Data read from IMU, sending to %d clients.\n", len(reqData))
 
 			// Data processing goes here.
+			m.M1 = cur.M1
+			m.M2 = cur.M2
+			m.M3 = cur.M3
+			s.Compute(m)
 
 			updateLogMap(t0, cur, logMap)
+			s.UpdateLogMap(m, logMap)
 			for len(reqData) > 0 {
 				ch := <-reqData
 				ch <- logMap
